@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"goent/ent/predicate"
+	"goent/ent/tweet"
 	"goent/ent/user"
 
 	"entgo.io/ent/dialect/sql"
@@ -54,9 +55,45 @@ func (uu *UserUpdate) AddAge(i int) *UserUpdate {
 	return uu
 }
 
+// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
+func (uu *UserUpdate) AddTweetIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddTweetIDs(ids...)
+	return uu
+}
+
+// AddTweets adds the "tweets" edges to the Tweet entity.
+func (uu *UserUpdate) AddTweets(t ...*Tweet) *UserUpdate {
+	ids := make([]int, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return uu.AddTweetIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
+}
+
+// ClearTweets clears all "tweets" edges to the Tweet entity.
+func (uu *UserUpdate) ClearTweets() *UserUpdate {
+	uu.mutation.ClearTweets()
+	return uu
+}
+
+// RemoveTweetIDs removes the "tweets" edge to Tweet entities by IDs.
+func (uu *UserUpdate) RemoveTweetIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveTweetIDs(ids...)
+	return uu
+}
+
+// RemoveTweets removes "tweets" edges to Tweet entities.
+func (uu *UserUpdate) RemoveTweets(t ...*Tweet) *UserUpdate {
+	ids := make([]int, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return uu.RemoveTweetIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -168,6 +205,60 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldAge,
 		})
 	}
+	if uu.mutation.TweetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedTweetsIDs(); len(nodes) > 0 && !uu.mutation.TweetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.TweetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -214,9 +305,45 @@ func (uuo *UserUpdateOne) AddAge(i int) *UserUpdateOne {
 	return uuo
 }
 
+// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
+func (uuo *UserUpdateOne) AddTweetIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddTweetIDs(ids...)
+	return uuo
+}
+
+// AddTweets adds the "tweets" edges to the Tweet entity.
+func (uuo *UserUpdateOne) AddTweets(t ...*Tweet) *UserUpdateOne {
+	ids := make([]int, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return uuo.AddTweetIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
+}
+
+// ClearTweets clears all "tweets" edges to the Tweet entity.
+func (uuo *UserUpdateOne) ClearTweets() *UserUpdateOne {
+	uuo.mutation.ClearTweets()
+	return uuo
+}
+
+// RemoveTweetIDs removes the "tweets" edge to Tweet entities by IDs.
+func (uuo *UserUpdateOne) RemoveTweetIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveTweetIDs(ids...)
+	return uuo
+}
+
+// RemoveTweets removes "tweets" edges to Tweet entities.
+func (uuo *UserUpdateOne) RemoveTweets(t ...*Tweet) *UserUpdateOne {
+	ids := make([]int, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return uuo.RemoveTweetIDs(ids...)
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -351,6 +478,60 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Value:  value,
 			Column: user.FieldAge,
 		})
+	}
+	if uuo.mutation.TweetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedTweetsIDs(); len(nodes) > 0 && !uuo.mutation.TweetsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.TweetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &User{config: uuo.config}
 	_spec.Assign = _node.assignValues

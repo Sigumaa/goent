@@ -8,6 +8,27 @@ import (
 )
 
 var (
+	// TweetsColumns holds the columns for the "tweets" table.
+	TweetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString},
+		{Name: "content", Type: field.TypeString, Nullable: true},
+		{Name: "user_tweets", Type: field.TypeInt, Nullable: true},
+	}
+	// TweetsTable holds the schema information for the "tweets" table.
+	TweetsTable = &schema.Table{
+		Name:       "tweets",
+		Columns:    TweetsColumns,
+		PrimaryKey: []*schema.Column{TweetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "tweets_users_tweets",
+				Columns:    []*schema.Column{TweetsColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -22,9 +43,11 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		TweetsTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	TweetsTable.ForeignKeys[0].RefTable = UsersTable
 }

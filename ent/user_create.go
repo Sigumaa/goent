@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"goent/ent/tweet"
 	"goent/ent/user"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -37,6 +38,21 @@ func (uc *UserCreate) SetNillableName(s *string) *UserCreate {
 func (uc *UserCreate) SetAge(i int) *UserCreate {
 	uc.mutation.SetAge(i)
 	return uc
+}
+
+// AddTweetIDs adds the "tweets" edge to the Tweet entity by IDs.
+func (uc *UserCreate) AddTweetIDs(ids ...int) *UserCreate {
+	uc.mutation.AddTweetIDs(ids...)
+	return uc
+}
+
+// AddTweets adds the "tweets" edges to the Tweet entity.
+func (uc *UserCreate) AddTweets(t ...*Tweet) *UserCreate {
+	ids := make([]int, len(t))
+	for i := range t {
+		ids[i] = t[i].ID
+	}
+	return uc.AddTweetIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -171,6 +187,25 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Column: user.FieldAge,
 		})
 		_node.Age = value
+	}
+	if nodes := uc.mutation.TweetsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TweetsTable,
+			Columns: []string{user.TweetsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: tweet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

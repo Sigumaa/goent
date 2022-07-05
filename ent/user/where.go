@@ -6,6 +6,7 @@ import (
 	"goent/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -289,6 +290,34 @@ func AgeLT(v int) predicate.User {
 func AgeLTE(v int) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		s.Where(sql.LTE(s.C(FieldAge), v))
+	})
+}
+
+// HasTweets applies the HasEdge predicate on the "tweets" edge.
+func HasTweets() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(TweetsTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TweetsTable, TweetsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTweetsWith applies the HasEdge predicate on the "tweets" edge with a given conditions (other predicates).
+func HasTweetsWith(preds ...predicate.Tweet) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(TweetsInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TweetsTable, TweetsColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
 	})
 }
 

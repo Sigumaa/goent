@@ -11,8 +11,17 @@ const (
 	FieldName = "name"
 	// FieldAge holds the string denoting the age field in the database.
 	FieldAge = "age"
+	// EdgeTweets holds the string denoting the tweets edge name in mutations.
+	EdgeTweets = "tweets"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// TweetsTable is the table that holds the tweets relation/edge.
+	TweetsTable = "tweets"
+	// TweetsInverseTable is the table name for the Tweet entity.
+	// It exists in this package in order to avoid circular dependency with the "tweet" package.
+	TweetsInverseTable = "tweets"
+	// TweetsColumn is the table column denoting the tweets relation/edge.
+	TweetsColumn = "user_tweets"
 )
 
 // Columns holds all SQL columns for user fields.

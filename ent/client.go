@@ -9,10 +9,12 @@ import (
 
 	"goent/ent/migrate"
 
+	"goent/ent/tweet"
 	"goent/ent/user"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // Client is the client that holds all ent builders.
@@ -20,6 +22,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Tweet is the client for interacting with the Tweet builders.
+	Tweet *TweetClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -35,6 +39,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Tweet = NewTweetClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -69,6 +74,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
+		Tweet:  NewTweetClient(cfg),
 		User:   NewUserClient(cfg),
 	}, nil
 }
@@ -89,6 +95,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
+		Tweet:  NewTweetClient(cfg),
 		User:   NewUserClient(cfg),
 	}, nil
 }
@@ -96,7 +103,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		User.
+//		Tweet.
 //		Query().
 //		Count(ctx)
 //
@@ -119,7 +126,114 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Tweet.Use(hooks...)
 	c.User.Use(hooks...)
+}
+
+// TweetClient is a client for the Tweet schema.
+type TweetClient struct {
+	config
+}
+
+// NewTweetClient returns a client for the Tweet from the given config.
+func NewTweetClient(c config) *TweetClient {
+	return &TweetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `tweet.Hooks(f(g(h())))`.
+func (c *TweetClient) Use(hooks ...Hook) {
+	c.hooks.Tweet = append(c.hooks.Tweet, hooks...)
+}
+
+// Create returns a create builder for Tweet.
+func (c *TweetClient) Create() *TweetCreate {
+	mutation := newTweetMutation(c.config, OpCreate)
+	return &TweetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Tweet entities.
+func (c *TweetClient) CreateBulk(builders ...*TweetCreate) *TweetCreateBulk {
+	return &TweetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Tweet.
+func (c *TweetClient) Update() *TweetUpdate {
+	mutation := newTweetMutation(c.config, OpUpdate)
+	return &TweetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TweetClient) UpdateOne(t *Tweet) *TweetUpdateOne {
+	mutation := newTweetMutation(c.config, OpUpdateOne, withTweet(t))
+	return &TweetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TweetClient) UpdateOneID(id int) *TweetUpdateOne {
+	mutation := newTweetMutation(c.config, OpUpdateOne, withTweetID(id))
+	return &TweetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Tweet.
+func (c *TweetClient) Delete() *TweetDelete {
+	mutation := newTweetMutation(c.config, OpDelete)
+	return &TweetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *TweetClient) DeleteOne(t *Tweet) *TweetDeleteOne {
+	return c.DeleteOneID(t.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *TweetClient) DeleteOneID(id int) *TweetDeleteOne {
+	builder := c.Delete().Where(tweet.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TweetDeleteOne{builder}
+}
+
+// Query returns a query builder for Tweet.
+func (c *TweetClient) Query() *TweetQuery {
+	return &TweetQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Tweet entity by its id.
+func (c *TweetClient) Get(ctx context.Context, id int) (*Tweet, error) {
+	return c.Query().Where(tweet.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TweetClient) GetX(ctx context.Context, id int) *Tweet {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUsers queries the users edge of a Tweet.
+func (c *TweetClient) QueryUsers(t *Tweet) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := t.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tweet.Table, tweet.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, tweet.UsersTable, tweet.UsersColumn),
+		)
+		fromV = sqlgraph.Neighbors(t.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TweetClient) Hooks() []Hook {
+	return c.hooks.Tweet
 }
 
 // UserClient is a client for the User schema.
@@ -205,6 +319,22 @@ func (c *UserClient) GetX(ctx context.Context, id int) *User {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryTweets queries the tweets edge of a User.
+func (c *UserClient) QueryTweets(u *User) *TweetQuery {
+	query := &TweetQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(tweet.Table, tweet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.TweetsTable, user.TweetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
